@@ -95,6 +95,56 @@ def specials() -> None:
 
 
 @cli.command()
+@click.argument("query")
+@click.option("--save", is_flag=True, help="Save all results to the tracker.")
+def search(query: str, save: bool) -> None:
+    """Search Woolworths by QUERY and display raw results.
+
+    Use this to verify product names and prices before they are saved.
+
+    \b
+    Examples:
+      tracker.py search watermelon
+      tracker.py search "seedless watermelon"
+      tracker.py search rockmelon --save
+    """
+    console.print(f"[bold cyan]Searching Woolworths for '{query}'...[/bold cyan]")
+    try:
+        products = woolworths_api.search_products(query)
+    except RuntimeError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        sys.exit(1)
+
+    if not products:
+        console.print("[yellow]No results returned. Try a different query.[/yellow]")
+        return
+
+    from rich.table import Table
+    table = Table(title=f"Woolworths search: '{query}'  ({len(products)} results)", show_lines=True)
+    table.add_column("#", width=4)
+    table.add_column("Product Name", min_width=36)
+    table.add_column("Price", justify="right")
+    table.add_column("Was", justify="right", style="dim")
+    table.add_column("Special", justify="center")
+    table.add_column("SKU")
+
+    for i, p in enumerate(products, 1):
+        special = "[red]YES[/red]" if p["on_special"] else "No"
+        was = f"${p['was_price']:.2f}" if p["was_price"] else "-"
+        table.add_row(str(i), p["name"], f"${p['price']:.2f}", was, special, p["sku"])
+
+    console.print(table)
+
+    if save:
+        saved = 0
+        for p in products:
+            pid = database.upsert_product("woolworths", p["name"], p["sku"], p["unit"])
+            database.record_price(pid, p["price"], p["was_price"], p["on_special"], "api")
+            saved += 1
+        console.print(f"[green]Saved {saved} product(s) to tracker.[/green]")
+
+
+@cli.command()
 def status() -> None:
     """Show a summary of tracked products and latest prices."""
     rows = database.get_latest_prices()
