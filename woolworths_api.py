@@ -79,7 +79,7 @@ def _raw_search(query: str, page_size: int = 36) -> list[dict]:
     resp.raise_for_status()
     data = resp.json()
     products = []
-    for bundle in (data.get("Bundles") or []):
+    for bundle in (data.get("Products") or data.get("Bundles") or []):
         for product in (bundle.get("Products") or []):
             products.append(product)
     return products
