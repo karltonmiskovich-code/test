@@ -145,6 +145,41 @@ def search(query: str, save: bool) -> None:
 
 
 @cli.command()
+@click.argument("query", default="watermelon")
+def debug(query: str) -> None:
+    """Show raw Woolworths API response details to diagnose connection issues.
+
+    \b
+    Examples:
+      tracker.py debug
+      tracker.py debug rockmelon
+    """
+    console.print(f"[bold cyan]Diagnosing Woolworths API for '{query}'...[/bold cyan]\n")
+    info = woolworths_api.diagnose(query)
+
+    if "request_error" in info:
+        console.print(f"[red]Connection failed:[/red] {info['request_error']}")
+        return
+
+    status_color = "green" if info.get("status_code") == 200 else "red"
+    console.print(f"HTTP status:      [{status_color}]{info.get('status_code')}[/{status_color}]")
+    console.print(f"Response size:    {info.get('response_size', 0)} bytes")
+    console.print(f"Cookies received: {info.get('cookies', [])}")
+    console.print(f"Top-level keys:   {info.get('top_level_keys', 'N/A')}")
+    console.print(f"Bundles:          {info.get('bundle_count', 'N/A')}")
+    console.print(f"Products:         {info.get('product_count', 'N/A')}")
+
+    if info.get("first_product_name"):
+        console.print(f"First product:    {info['first_product_name']}")
+
+    if "json_parse_error" in info:
+        console.print(f"\n[red]JSON parse error:[/red] {info['json_parse_error']}")
+
+    console.print(f"\n[dim]--- Response preview (first 800 chars) ---[/dim]")
+    console.print(info.get("response_preview", "(empty)"))
+
+
+@cli.command()
 def status() -> None:
     """Show a summary of tracked products and latest prices."""
     rows = database.get_latest_prices()

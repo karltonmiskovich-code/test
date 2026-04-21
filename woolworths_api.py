@@ -162,6 +162,42 @@ def _parse_product(raw: dict) -> WoolworthsProduct | None:
     )
 
 
+def diagnose(query: str = "watermelon") -> dict:
+    """Return raw diagnostic info to help troubleshoot API issues."""
+    info: dict = {}
+    try:
+        _ensure_session()
+        info["cookies"] = list(_session.cookies.keys())
+        payload = {
+            "Filters": [],
+            "IsSpecial": False,
+            "Location": f"/shop/search/products?searchTerm={query}",
+            "PageNumber": 1,
+            "PageSize": 5,
+            "SearchTerm": query,
+            "SortType": "TraderRelevance",
+        }
+        resp = _session.post(BASE_URL, json=payload, headers=HEADERS, timeout=15)
+        info["status_code"] = resp.status_code
+        info["response_size"] = len(resp.text)
+        info["response_preview"] = resp.text[:800]
+        try:
+            data = resp.json()
+            info["top_level_keys"] = list(data.keys())
+            bundles = data.get("Bundles") or []
+            info["bundle_count"] = len(bundles)
+            products = [p for b in bundles for p in (b.get("Products") or [])]
+            info["product_count"] = len(products)
+            if products:
+                info["first_product_keys"] = list(products[0].keys())
+                info["first_product_name"] = products[0].get("Name")
+        except Exception as parse_err:
+            info["json_parse_error"] = str(parse_err)
+    except Exception as exc:
+        info["request_error"] = str(exc)
+    return info
+
+
 def fetch_melon_products(verbose: bool = False) -> list[WoolworthsProduct]:
     """Fetch all fresh melon products from Woolworths using preset queries."""
     seen_skus: set[str] = set()
