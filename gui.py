@@ -33,8 +33,8 @@ class App(tk.Tk):
         self.minsize(900, 580)
         database.init_db()
         self._apply_style()
-        self._build_notebook()
         self._build_statusbar()
+        self._build_notebook()
 
     # ── Style ─────────────────────────────────────────────────────────────────
 
